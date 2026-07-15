@@ -1,0 +1,55 @@
+{
+  "name": "@forjio/linksnap-node",
+  "version": "0.1.2",
+  "description": "Official Node.js SDK for LinkSnap \u2014 short links, QR codes, tags, custom domains, click analytics. Powered by @forjio/sdk for OIDC device-flow auth + multi-profile session store + typed API client.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@forjio/sdk": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "linksnap",
+    "forjio",
+    "short-links",
+    "url-shortener",
+    "qr-codes",
+    "analytics"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/hachimi-cat/linksnap-node#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hachimi-cat/linksnap-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hachimi-cat/linksnap-node/issues"
+  }
+}

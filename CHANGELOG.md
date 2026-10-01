@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.0
+- `client.api`: the webhook delivery log — `webhooksDeliveries({ subscriptionId?, status?, type?, limit?, cursor? })`, `webhooksGetDeliveries(id)` (with every attempt), `webhooksDeliveriesRetry(id)` — and `webhooksEventTypes()` (the event catalog). LinkSnap now retries a failed delivery 1 min, 5 min, 25 min, 2 h and 12 h later and switches off an endpoint that keeps failing for a day; endpoints carry `consecutiveFailures`, `failingSince`, `disabledAt`, `disabledReason`, and `events` takes prefixes (`linksnap.link.*`).
+
 ## 0.3.0
 - File uploads: `client.api.qrCodesUploadLogo({ logo })` sends the logo as `multipart/form-data` (it was generated with no input and could not upload anything), with the client's credential, and returns `{ logoData }`. A `File` or `Blob` without a type is typed from its name (`logo.png` → `image/png`): the API takes a logo by its type (PNG, JPEG or SVG).
 

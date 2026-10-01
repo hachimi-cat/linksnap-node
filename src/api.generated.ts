@@ -7,7 +7,7 @@ export interface ApigenTransport {
   apigenRequest(method: string, path: string, query: Record<string, unknown> | undefined, body: unknown): Promise<unknown>;
 }
 
-/** All 52 feature routes of the LinkSnap API. */
+/** All 56 feature routes of the LinkSnap API. */
 export class GeneratedApi {
   constructor(private readonly client: ApigenTransport) {}
 
@@ -301,6 +301,33 @@ export class GeneratedApi {
   /** Remove endpoint. (DELETE /api/v1/webhooks/{id}) */
   webhooksDelete(id: string): Promise<unknown> {
     return this.call("DELETE", `/api/v1/webhooks/${encodeURIComponent(id)}`, {}, undefined);
+  }
+
+  /** List webhook deliveries. (GET /api/v1/webhooks/deliveries) */
+  webhooksDeliveries(input?: { "cursor"?: unknown; "limit"?: unknown; "status"?: unknown; "subscriptionId"?: unknown; "type"?: unknown }): Promise<unknown> {
+    const all: Record<string, unknown> = { ...(input ?? {}) };
+    const query: Record<string, unknown> = {};
+    query["cursor"] = all["cursor"]; delete all["cursor"];
+    query["limit"] = all["limit"]; delete all["limit"];
+    query["status"] = all["status"]; delete all["status"];
+    query["subscriptionId"] = all["subscriptionId"]; delete all["subscriptionId"];
+    query["type"] = all["type"]; delete all["type"];
+    return this.call("GET", `/api/v1/webhooks/deliveries`, query, undefined);
+  }
+
+  /** Retry a webhook delivery. (POST /api/v1/webhooks/deliveries/{id}/retry) */
+  webhooksDeliveriesRetry(id: string): Promise<unknown> {
+    return this.call("POST", `/api/v1/webhooks/deliveries/${encodeURIComponent(id)}/retry`, {}, undefined);
+  }
+
+  /** The event catalogue: every type LinkSnap sends, with what fires it — the dashboard's event picker renders from this. (GET /api/v1/webhooks/event-types) */
+  webhooksEventTypes(): Promise<unknown> {
+    return this.call("GET", `/api/v1/webhooks/event-types`, {}, undefined);
+  }
+
+  /** Get a webhook delivery, with every attempt made at it. (GET /api/v1/webhooks/deliveries/{id}) */
+  webhooksGetDeliveries(id: string): Promise<unknown> {
+    return this.call("GET", `/api/v1/webhooks/deliveries/${encodeURIComponent(id)}`, {}, undefined);
   }
 
   /** List endpoints (never includes the secret). (GET /api/v1/webhooks) */

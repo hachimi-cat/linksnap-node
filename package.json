@@ -1,6 +1,6 @@
 {
   "name": "@forjio/linksnap-node",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Official Node.js SDK for LinkSnap \u2014 short links, QR codes, tags, custom domains, click analytics. Powered by @forjio/sdk for OIDC device-flow auth + multi-profile session store + typed API client.",
   "type": "module",
   "main": "./dist/index.cjs",

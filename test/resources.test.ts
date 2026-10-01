@@ -52,6 +52,8 @@ describe('LinkSnapClient', () => {
   it('billing.checkout POSTs', async () => {
     await h.client.billing.checkout({ planId: 'pro' });
     expect(h.captured[0]!.url).toContain('/api/v1/billing/checkout');
+    // The server reads `plan` (routes/billing.ts).
+    expect(JSON.parse(h.captured[0]!.body!)).toEqual({ plan: 'pro' });
   });
   it('workspace.members.add POSTs', async () => {
     await h.client.workspace.members.add({ email: 'a@b.com', role: 'admin' });

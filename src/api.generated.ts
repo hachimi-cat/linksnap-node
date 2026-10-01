@@ -16,6 +16,17 @@ export class GeneratedApi {
     return this.client.apigenRequest(method, path, Object.keys(q).length ? q : undefined, body);
   }
 
+  /** A file upload's body: a FormData with each file (a Blob; a File keeps its name) and
+   *  the other fields as text. The client's apigenRequest sends a FormData as it is. */
+  private form(fields: Record<string, unknown>): FormData {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) {
+      if (v === undefined || v === null) continue;
+      form.append(k, v instanceof Blob ? v : typeof v === 'string' ? v : JSON.stringify(v));
+    }
+    return form;
+  }
+
   /** List audit log (GET /api/v1/audit-log) */
   auditLogList(input?: { "action"?: unknown; "cursor"?: unknown; "limit"?: unknown }): Promise<unknown> {
     const all: Record<string, unknown> = { ...(input ?? {}) };
@@ -249,9 +260,11 @@ export class GeneratedApi {
     return this.call("PATCH", `/api/v1/qr-codes/${encodeURIComponent(id)}`, query, all);
   }
 
-  /** Upload logo for QR code center — PRO and BUSINESS only (POST /api/v1/qr-codes/upload-logo) */
-  qrCodesUploadLogo(): Promise<unknown> {
-    return this.call("POST", `/api/v1/qr-codes/upload-logo`, {}, undefined);
+  /** Upload a logo for the QR code's center (on plans with qrLogoEnabled — every plan today) (POST /api/v1/qr-codes/upload-logo) */
+  qrCodesUploadLogo(input: { "logo": Blob }): Promise<unknown> {
+    const all: Record<string, unknown> = { ...(input ?? {}) };
+    const query: Record<string, unknown> = {};
+    return this.call("POST", `/api/v1/qr-codes/upload-logo`, query, this.form(all));
   }
 
   /** Create tag (POST /api/v1/tags) */

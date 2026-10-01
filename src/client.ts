@@ -1,4 +1,4 @@
-import { ApiClient, Session } from '@forjio/sdk';
+import { ApiClient, ApiError, NetworkError, Session } from '@forjio/sdk';
 import { GeneratedApi, type ApigenTransport } from './api.generated.js';
 import type {
   Link,
@@ -64,12 +64,49 @@ const isApiKey = (token: string): boolean => token.startsWith('lsk_');
 const apiKeyHeader = (key: string): string => `ApiKey ${key}`;
 const credentialHeader = (token: string): string => (isApiKey(token) ? apiKeyHeader(token) : `Bearer ${token}`);
 
+/** A file upload's part types, by file name, for a Blob given without one: the server
+ *  takes a file by its declared type (the QR logo: PNG, JPEG or SVG only). */
+const TYPES_BY_EXTENSION: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  svg: 'image/svg+xml',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  pdf: 'application/pdf',
+  csv: 'text/csv',
+  txt: 'text/plain',
+};
+
+function isFormData(v: unknown): v is FormData {
+  return typeof FormData !== 'undefined' && v instanceof FormData;
+}
+
+/** The form with each file that has no type of its own given one from its name. */
+function typedForm(form: FormData): FormData {
+  const out = new FormData();
+  form.forEach((value, key) => {
+    if (typeof value === 'string') {
+      out.append(key, value);
+      return;
+    }
+    const name = (value as File).name || key;
+    const guessed = TYPES_BY_EXTENSION[name.split('.').pop()?.toLowerCase() ?? ''];
+    out.append(key, value.type || !guessed ? value : new Blob([value], { type: guessed }), name);
+  });
+  return out;
+}
+
 export class LinkSnapClient {
   /** Every feature route (generated), plus the raw HTTP verbs. See LinkSnapApi. */
   readonly api: LinkSnapApi;
   private readonly http: ApiClient;
+  private readonly apiKey?: string;
+  private readonly fetchImpl?: typeof fetch;
 
   constructor(opts: LinkSnapClientOptions = {}) {
+    this.apiKey = opts.apiKey;
+    this.fetchImpl = opts.fetchImpl;
     this.http = new ApiClient({
       baseUrl: opts.baseUrl ?? 'https://linksnap.forjio.com',
       // A key is the credential for every call (the raw verbs of client.api included).
@@ -201,8 +238,10 @@ export class LinkSnapClient {
   };
 
   /** The call behind `client.api.<area><Action>(...)`: the same ApiClient and
-   *  credentials (session, or the constructor's apiKey) as every other method. */
+   *  credentials (session, or the constructor's apiKey) as every other method. A file
+   *  upload's body is a FormData, sent as multipart/form-data (sendForm). */
   apigenRequest(method: string, path: string, query: Record<string, unknown> | undefined, body: unknown): Promise<unknown> {
+    if (isFormData(body)) return this.sendForm(method.toUpperCase(), path, query, body);
     const ro = {
       ...this.a(),
       query: query
@@ -228,6 +267,59 @@ export class LinkSnapClient {
       default:
         return Promise.reject(new Error(`unsupported method ${method}`));
     }
+  }
+
+  /** A file upload: the form as multipart/form-data (fetch writes the body and its
+   *  Content-Type, with the boundary), with the credential every other call sends — the
+   *  apiKey, else the session's token, refreshed when about to expire and once more on a
+   *  401 — and the response envelope unwrapped like ApiClient's. (ApiClient JSON-encodes
+   *  every body, so a FormData cannot go through it.) */
+  private async sendForm(method: string, path: string, query: Record<string, unknown> | undefined, body: FormData): Promise<unknown> {
+    const url = new URL(`${this.http.baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`);
+    for (const [k, v] of Object.entries(query ?? {})) {
+      if (v !== undefined && v !== null) url.searchParams.set(k, typeof v === 'string' ? v : JSON.stringify(v));
+    }
+    const form = typedForm(body);
+    const session = this.apiKey ? undefined : this.http.session;
+    const send = async (): Promise<Response> => {
+      const headers: Record<string, string> = { accept: 'application/json' };
+      const token = this.apiKey ?? session?.data?.accessToken;
+      if (token) headers.authorization = credentialHeader(token);
+      try {
+        return await (this.fetchImpl ?? fetch)(url.toString(), { method, headers, body: form });
+      } catch (e) {
+        throw new NetworkError((e as Error).message, e);
+      }
+    };
+    if (session?.willExpireSoon(300)) await session.refresh().catch(() => undefined);
+    let res = await send();
+    if (res.status === 401 && session) {
+      try {
+        await session.refresh();
+        res = await send();
+      } catch {
+        // the original 401 is reported below
+      }
+    }
+    const text = await res.text().catch(() => '');
+    let parsed: unknown = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new ApiError(res.ok ? 'INVALID_RESPONSE' : 'NON_JSON_ERROR', res.ok ? 'non-JSON response from server' : text, res.status);
+      }
+    }
+    const env = parsed as { data?: unknown; error?: { code: string; message: string; details?: Record<string, unknown> } | null; meta?: { requestId?: string } } | null;
+    if (env && typeof env === 'object' && 'data' in env && 'error' in env && 'meta' in env) {
+      if (env.error) throw new ApiError(env.error.code, env.error.message, res.status, env.meta?.requestId, env.error.details);
+      return env.data;
+    }
+    if (!res.ok) {
+      const e = ((env as { error?: unknown } | null)?.error ?? env) as { code?: string; message?: string } | null;
+      throw new ApiError(e?.code ?? 'HTTP_ERROR', e?.message ?? res.statusText, res.status, undefined, (env as Record<string, unknown> | null) ?? undefined);
+    }
+    return parsed ?? undefined;
   }
 
   // ─── Health (no auth) ────────────────────────────────────
